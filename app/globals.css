@@ -40,11 +40,14 @@ html {
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at 76% 0%, rgba(50, 100, 108, 0.09), transparent 28rem),
-    var(--bg);
+  background: radial-gradient(circle at 76% 0%, rgba(50, 100, 108, 0.09), transparent 28rem), var(--bg);
   color: var(--text);
-  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    "Inter",
+    "Segoe UI",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   font-size: 14px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
@@ -102,10 +105,10 @@ a {
   flex-direction: column;
   overflow: hidden;
   border-right: 1px solid var(--border);
-  background:
-    linear-gradient(180deg, rgba(85, 214, 190, 0.035), transparent 16rem),
-    #0b1015;
-  transition: width 180ms ease, transform 180ms ease;
+  background: linear-gradient(180deg, rgba(85, 214, 190, 0.035), transparent 16rem), #0b1015;
+  transition:
+    width 180ms ease,
+    transform 180ms ease;
 }
 
 .sidebar--compact {
@@ -273,7 +276,10 @@ a {
   color: #9aa7b3;
   font-size: 12px;
   font-weight: 550;
-  transition: background 130ms ease, color 130ms ease, transform 130ms ease;
+  transition:
+    background 130ms ease,
+    color 130ms ease,
+    transform 130ms ease;
 }
 
 .nav-item:hover {
@@ -659,7 +665,10 @@ kbd {
   background: var(--panel);
   color: var(--text-soft);
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .icon-btn:hover,
@@ -900,7 +909,10 @@ kbd {
   font-size: 10px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
 }
 
 .button:hover {
@@ -954,9 +966,7 @@ kbd {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.012), transparent 35%),
-    var(--panel);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.012), transparent 35%), var(--panel);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.018);
 }
 
@@ -996,7 +1006,9 @@ kbd {
 .account-hero::before {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgba(85, 214, 190, 0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(85, 214, 190, 0.025) 1px, transparent 1px);
+  background-image:
+    linear-gradient(rgba(85, 214, 190, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(85, 214, 190, 0.025) 1px, transparent 1px);
   background-size: 28px 28px;
   content: "";
   mask-image: linear-gradient(90deg, transparent 25%, black);
@@ -1761,7 +1773,9 @@ kbd {
   border: 1px solid var(--border);
   border-radius: 13px;
   background: var(--bg-raised);
-  transition: border-color 140ms ease, transform 140ms ease;
+  transition:
+    border-color 140ms ease,
+    transform 140ms ease;
 }
 
 .account-card:hover {
@@ -2959,8 +2973,14 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 @keyframes slide-in {
-  from { transform: translateX(25px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(25px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .drawer-head,
@@ -2994,8 +3014,7 @@ input[type="number"]::-webkit-inner-spin-button {
   border-radius: 10px;
   background:
     linear-gradient(rgba(49, 64, 77, 0.28) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(49, 64, 77, 0.28) 1px, transparent 1px),
-    #0a1015;
+    linear-gradient(90deg, rgba(49, 64, 77, 0.28) 1px, transparent 1px), #0a1015;
   background-size: 38px 38px;
 }
 
@@ -3421,9 +3440,7 @@ input[type="number"]::-webkit-inner-spin-button {
   padding: 17px 20px;
   border: 1px solid rgba(243, 109, 120, 0.2);
   border-radius: 13px;
-  background:
-    linear-gradient(100deg, rgba(243, 109, 120, 0.1), rgba(243, 109, 120, 0.025)),
-    var(--panel);
+  background: linear-gradient(100deg, rgba(243, 109, 120, 0.1), rgba(243, 109, 120, 0.025)), var(--panel);
 }
 
 .alert-live {
@@ -4214,9 +4231,7 @@ input[type="number"]::-webkit-inner-spin-button {
   min-height: 260px;
   place-items: center;
   padding: 30px;
-  background:
-    radial-gradient(circle at 50% 20%, rgba(85, 214, 190, 0.09), transparent 24rem),
-    var(--panel);
+  background: radial-gradient(circle at 50% 20%, rgba(85, 214, 190, 0.09), transparent 24rem), var(--panel);
   text-align: center;
 }
 
@@ -4631,9 +4646,7 @@ input[type="number"]::-webkit-inner-spin-button {
   padding: 25px;
   border: 1px solid var(--border-bright);
   border-radius: 15px;
-  background:
-    radial-gradient(circle at 0 0, rgba(85, 214, 190, 0.08), transparent 15rem),
-    #111820;
+  background: radial-gradient(circle at 0 0, rgba(85, 214, 190, 0.08), transparent 15rem), #111820;
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5);
   animation: command-in 150ms ease-out;
 }
@@ -4886,8 +4899,14 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 @keyframes command-in {
-  from { transform: translateY(-8px) scale(0.985); opacity: 0; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
+  from {
+    transform: translateY(-8px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 .command-input {
@@ -5019,8 +5038,14 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 @keyframes toast-in {
-  from { transform: translateY(10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .mobile-only,

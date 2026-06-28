@@ -57,3 +57,22 @@ npm start
 ## Integration boundary
 
 The current repository is the complete sellable front-end product layer with realistic domain data. A deployment for a specific prop firm should connect the typed models in `data/dashboard.ts` to that firm's account, execution, KYC, billing, notification, and payout APIs. The risk calculations shown in the interface should be repeated and enforced server-side; client-side checks are decision support, not a security boundary.
+
+## Front-end architecture
+
+The dashboard uses feature-oriented modules rather than a monolithic component:
+
+```text
+components/
+├── dashboard-app.tsx          # routing and shared application state only
+└── dashboard/
+    ├── config.ts              # navigation and page metadata
+    ├── formatters.ts          # display formatting
+    ├── shell.tsx              # sidebar, topbar, command palette and dialogs
+    ├── trade-table.tsx        # shared trade presentation
+    ├── types.ts               # cross-feature UI contracts
+    ├── ui.tsx                 # small reusable visual primitives
+    └── pages/                 # one module per dashboard product area
+```
+
+Domain pages own their local interaction state. Shared account selection, overlays, routing and global feedback remain in the dashboard orchestrator.
