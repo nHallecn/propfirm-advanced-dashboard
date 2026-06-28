@@ -39,6 +39,7 @@ import {
   LifeBuoy,
   ListFilter,
   Lock,
+  LogOut,
   Menu,
   MessageCircleQuestion,
   Newspaper,
@@ -139,6 +140,7 @@ const navGroups = [
     items: [
       { id: "academy", label: "Trading academy", icon: GraduationCap, href: "/dashboard/academy" },
       { id: "support", label: "Help & support", icon: LifeBuoy, href: "/dashboard/support" },
+      { id: "settings", label: "Settings", icon: Settings, href: "/dashboard/settings" },
     ],
   },
 ];
@@ -194,9 +196,20 @@ const titleMap: Record<string, { eyebrow: string; title: string; subtitle: strin
     title: "Support center",
     subtitle: "Find a clear answer or reach a real person quickly.",
   },
+  settings: {
+    eyebrow: "Workspace preferences",
+    title: "Settings",
+    subtitle: "Manage your profile, connections, alerts, security, and billing.",
+  },
 };
 
 type Range = "7D" | "30D" | "90D" | "All";
+type AppDialog = {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  detail?: string;
+};
 
 export default function DashboardApp() {
   const pathname = usePathname();
@@ -210,6 +223,8 @@ export default function DashboardApp() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [dialog, setDialog] = useState<AppDialog | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const account = accounts.find((item) => item.id === accountId) ?? accounts[0];
@@ -224,6 +239,8 @@ export default function DashboardApp() {
         setCommandOpen(false);
         setNotificationsOpen(false);
         setAccountMenuOpen(false);
+        setProfileMenuOpen(false);
+        setDialog(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -237,6 +254,7 @@ export default function DashboardApp() {
   }, [toast]);
 
   const showToast = (message: string) => setToast(message);
+  const openDialog = (nextDialog: AppDialog) => setDialog(nextDialog);
   const meta = titleMap[section];
 
   const exportTrades = () => {
@@ -265,6 +283,14 @@ export default function DashboardApp() {
         mobileOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onCompact={() => setSidebarCompact((value) => !value)}
+        onChallenge={() =>
+          openDialog({
+            title: "Start a new challenge",
+            description: "Choose an account size and evaluation model. Your current risk preferences will be carried into the new account.",
+            detail: "$25K Two-Step Pro · $89 · 90% reward split",
+            actionLabel: "Continue to checkout",
+          })
+        }
       />
       {sidebarOpen && <button className="mobile-scrim" aria-label="Close menu" onClick={() => setSidebarOpen(false)} />}
 
@@ -273,14 +299,28 @@ export default function DashboardApp() {
           account={account}
           accountMenuOpen={accountMenuOpen}
           notificationsOpen={notificationsOpen}
+          profileMenuOpen={profileMenuOpen}
           onMenu={() => setSidebarOpen(true)}
           onAccountMenu={() => setAccountMenuOpen((value) => !value)}
           onNotifications={() => setNotificationsOpen((value) => !value)}
+          onProfileMenu={() => setProfileMenuOpen((value) => !value)}
           onCommand={() => setCommandOpen(true)}
           onSelectAccount={(id) => {
             setAccountId(id);
             setAccountMenuOpen(false);
             showToast("Account view updated");
+          }}
+          onNavigate={(href) => {
+            setProfileMenuOpen(false);
+            router.push(href);
+          }}
+          onSignOut={() => {
+            setProfileMenuOpen(false);
+            openDialog({
+              title: "Sign out of NOVA?",
+              description: "Your synchronized account data is safe. You will need to verify your identity again to access payout settings.",
+              actionLabel: "Sign out",
+            });
           }}
         />
 
@@ -293,23 +333,25 @@ export default function DashboardApp() {
             section={section}
             onAction={() => {
               if (section === "risk") showToast("Risk settings locked until the next session");
-              else if (section === "journal") showToast("New journal entry ready");
+              else if (section === "journal") openDialog({ title: "Create a journal entry", description: "Start a manual review for an unimported trade or a session-level note.", detail: "The entry will be attached to Primary $25K and today’s session.", actionLabel: "Create entry" });
+              else if (section === "accounts") openDialog({ title: "Connect a trading account", description: "Choose MT4, MT5, cTrader or DXtrade, then authenticate with read-only investor credentials.", detail: "Credentials are encrypted and can never place or modify trades.", actionLabel: "Connect account" });
               else router.push("/dashboard/accounts");
             }}
           />
 
-          {section === "overview" && <Overview account={account} onNavigate={(to) => router.push(to)} />}
+          {section === "overview" && <Overview account={account} range={range} onNavigate={(to) => router.push(to)} onToast={showToast} />}
           {section === "accounts" && (
-            <AccountsPage accountId={accountId} onSelect={setAccountId} onToast={showToast} />
+            <AccountsPage accountId={accountId} onSelect={setAccountId} onToast={showToast} onDialog={openDialog} />
           )}
-          {section === "analytics" && <AnalyticsPage />}
+          {section === "analytics" && <AnalyticsPage range={range} onToast={showToast} />}
           {section === "risk" && <RiskPage account={account} onToast={showToast} />}
           {section === "journal" && <JournalPage onExport={exportTrades} onToast={showToast} />}
           {section === "payouts" && <PayoutsPage onToast={showToast} />}
-          {section === "calendar" && <CalendarPage onToast={showToast} />}
+          {section === "calendar" && <CalendarPage onToast={showToast} onDialog={openDialog} />}
           {section === "achievements" && <AchievementsPage onToast={showToast} />}
-          {section === "academy" && <AcademyPage />}
+          {section === "academy" && <AcademyPage onToast={showToast} />}
           {section === "support" && <SupportPage onToast={showToast} />}
+          {section === "settings" && <SettingsPage onToast={showToast} onDialog={openDialog} />}
         </main>
       </div>
 
@@ -320,6 +362,11 @@ export default function DashboardApp() {
             setNotificationsOpen(false);
             router.push(href);
           }}
+          onMarkRead={() => showToast("All notifications marked as read")}
+          onSettings={() => {
+            setNotificationsOpen(false);
+            router.push("/dashboard/settings");
+          }}
         />
       )}
       {commandOpen && (
@@ -328,6 +375,16 @@ export default function DashboardApp() {
           onNavigate={(href) => {
             setCommandOpen(false);
             router.push(href);
+          }}
+        />
+      )}
+      {dialog && (
+        <ActionDialog
+          dialog={dialog}
+          onClose={() => setDialog(null)}
+          onConfirm={() => {
+            showToast(`${dialog.actionLabel ?? "Action"} completed`);
+            setDialog(null);
           }}
         />
       )}
@@ -365,12 +422,14 @@ function Sidebar({
   mobileOpen,
   onClose,
   onCompact,
+  onChallenge,
 }: {
   active: string;
   compact: boolean;
   mobileOpen: boolean;
   onClose: () => void;
   onCompact: () => void;
+  onChallenge: () => void;
 }) {
   return (
     <aside className={clsx("sidebar", compact && "sidebar--compact", mobileOpen && "sidebar--mobile-open")}>
@@ -381,7 +440,7 @@ function Sidebar({
         </button>
       </div>
 
-      <div className="sidebar-challenge">
+      <button className="sidebar-challenge" onClick={onChallenge}>
         <span className="challenge-icon">
           <Zap size={16} />
         </span>
@@ -392,7 +451,7 @@ function Sidebar({
           </span>
         )}
         {!compact && <ChevronRight size={16} />}
-      </div>
+      </button>
 
       <nav className="sidebar-nav" aria-label="Main navigation">
         {navGroups.map((group) => (
@@ -445,20 +504,28 @@ function Topbar({
   account,
   accountMenuOpen,
   notificationsOpen,
+  profileMenuOpen,
   onMenu,
   onAccountMenu,
   onNotifications,
+  onProfileMenu,
   onCommand,
   onSelectAccount,
+  onNavigate,
+  onSignOut,
 }: {
   account: TradingAccount;
   accountMenuOpen: boolean;
   notificationsOpen: boolean;
+  profileMenuOpen: boolean;
   onMenu: () => void;
   onAccountMenu: () => void;
   onNotifications: () => void;
+  onProfileMenu: () => void;
   onCommand: () => void;
   onSelectAccount: (id: string) => void;
+  onNavigate: (href: string) => void;
+  onSignOut: () => void;
 }) {
   return (
     <header className="topbar">
@@ -520,14 +587,29 @@ function Topbar({
           <Bell size={18} />
           <i />
         </button>
-        <button className="profile-button">
-          <span>NH</span>
-          <div>
-            <strong>Nji Halle</strong>
-            <small>Pro trader</small>
-          </div>
-          <ChevronDown size={15} />
-        </button>
+        <div className="profile-menu-wrap">
+          <button className="profile-button" onClick={onProfileMenu} aria-expanded={profileMenuOpen}>
+            <span>NH</span>
+            <div>
+              <strong>Nji Halle</strong>
+              <small>Pro trader</small>
+            </div>
+            <ChevronDown size={15} />
+          </button>
+          {profileMenuOpen && (
+            <div className="profile-menu popover">
+              <div className="profile-menu-head">
+                <span>NH</span>
+                <div><strong>Nji Halle</strong><small>nji.halle@example.com</small></div>
+                <BadgeCheck size={17} />
+              </div>
+              <button onClick={() => onNavigate("/dashboard/settings")}><UserRound size={16} /> Profile & verification</button>
+              <button onClick={() => onNavigate("/dashboard/settings")}><Settings size={16} /> Workspace settings</button>
+              <button onClick={() => onNavigate("/dashboard/payouts")}><WalletCards size={16} /> Payout methods</button>
+              <button className="profile-menu-signout" onClick={onSignOut}><LogOut size={16} /> Sign out</button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
@@ -717,10 +799,14 @@ function ChartTooltip({
 
 function Overview({
   account,
+  range,
   onNavigate,
+  onToast,
 }: {
   account: TradingAccount;
+  range: Range;
   onNavigate: (to: string) => void;
+  onToast: (message: string) => void;
 }) {
   const netProfit = account.balance - account.startingBalance;
   const targetProgress = Math.max(0, (netProfit / account.profitTarget) * 100);
@@ -730,6 +816,7 @@ function Overview({
   const dailyStart = account.equity - account.dailyPnL;
   const dailyFloor = dailyStart - account.dailyLossLimit;
   const dailyRoom = account.equity - dailyFloor;
+  const visibleEquityData = range === "7D" ? equityData.slice(-4) : range === "30D" ? equityData.slice(-10) : range === "90D" ? equityData : equityData.filter((_, index) => index % 2 === 0 || index === equityData.length - 1);
 
   return (
     <div className="page-stack">
@@ -746,7 +833,7 @@ function Overview({
                 {account.program} · {account.platform} · {account.id}
               </p>
             </div>
-            <button className="icon-btn">
+            <button className="icon-btn" onClick={() => onToast(`${account.label} actions opened`)}>
               <Ellipsis size={19} />
             </button>
           </div>
@@ -825,7 +912,7 @@ function Overview({
           />
           <div className="chart-wrap chart-wrap--large">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={equityData} margin={{ top: 12, right: 8, left: -10, bottom: 0 }}>
+              <AreaChart data={visibleEquityData} margin={{ top: 12, right: 8, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="equityFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#55d6be" stopOpacity={0.26} />
@@ -940,13 +1027,13 @@ function Overview({
               </button>
             }
           />
-          <TradeTable items={trades.slice(0, 4)} compact />
+          <TradeTable items={trades.slice(0, 4)} compact onInspect={() => onNavigate("/dashboard/journal")} />
         </Panel>
         <Panel className="calendar-panel">
           <PanelHeading
             title="Today’s market risk"
             subtitle="Africa/Douala · GMT+1"
-            action={<button className="icon-btn"><Filter size={16} /></button>}
+            action={<button className="icon-btn" onClick={() => onNavigate("/dashboard/calendar")} aria-label="Filter calendar"><Filter size={16} /></button>}
           />
           <div className="event-warning">
             <AlertTriangle size={16} />
@@ -976,7 +1063,15 @@ function Overview({
   );
 }
 
-function TradeTable({ items, compact = false }: { items: Trade[]; compact?: boolean }) {
+function TradeTable({
+  items,
+  compact = false,
+  onInspect,
+}: {
+  items: Trade[];
+  compact?: boolean;
+  onInspect: (trade: Trade) => void;
+}) {
   return (
     <div className="table-scroll">
       <table className={clsx("data-table", compact && "data-table--compact")}>
@@ -1014,7 +1109,7 @@ function TradeTable({ items, compact = false }: { items: Trade[]; compact?: bool
               </td>
               <td><strong className={trade.pnl >= 0 ? "positive" : "negative"}>{signedMoney(trade.pnl)}</strong></td>
               <td><Pill tone={trade.resultR >= 0 ? "green" : "red"}>{trade.resultR > 0 ? "+" : ""}{trade.resultR.toFixed(2)}R</Pill></td>
-              <td><button className="icon-btn icon-btn--small"><ChevronRight size={15} /></button></td>
+              <td><button className="icon-btn icon-btn--small" onClick={() => onInspect(trade)} aria-label={`Inspect ${trade.symbol} trade`}><ChevronRight size={15} /></button></td>
             </tr>
           ))}
         </tbody>
@@ -1027,13 +1122,17 @@ function AccountsPage({
   accountId,
   onSelect,
   onToast,
+  onDialog,
 }: {
   accountId: string;
   onSelect: (id: string) => void;
   onToast: (message: string) => void;
+  onDialog: (dialog: AppDialog) => void;
 }) {
   const [filter, setFilter] = useState("All");
+  const [reverseOrder, setReverseOrder] = useState(false);
   const visible = accounts.filter((account) => filter === "All" || account.status === filter);
+  const orderedAccounts = reverseOrder ? [...visible].reverse() : visible;
   const totalCapital = accounts
     .filter((account) => account.status === "Funded")
     .reduce((sum, account) => sum + account.startingBalance, 0);
@@ -1058,12 +1157,12 @@ function AccountsPage({
             ))}
           </div>
           <div className="toolbar-actions">
-            <button className="button button--secondary"><ListFilter size={15} /> Filter</button>
-            <button className="button button--primary" onClick={() => onToast("Account connection flow opened")}><Plus size={15} /> Add account</button>
+            <button className="button button--secondary" onClick={() => { setReverseOrder((value) => !value); onToast(reverseOrder ? "Accounts sorted newest first" : "Accounts sorted oldest first"); }}><ListFilter size={15} /> Reverse order</button>
+            <button className="button button--primary" onClick={() => onDialog({ title: "Connect a trading account", description: "Select a supported platform and add read-only credentials. NOVA will import history and rule parameters automatically.", detail: "Supported: MT4, MT5, cTrader and DXtrade", actionLabel: "Begin connection" })}><Plus size={15} /> Add account</button>
           </div>
         </div>
         <div className="account-card-grid">
-          {visible.map((account) => {
+          {orderedAccounts.map((account) => {
             const profit = account.balance - account.startingBalance;
             const progress = (profit / account.profitTarget) * 100;
             const floor = account.startingBalance - account.maxLossLimit;
@@ -1111,15 +1210,15 @@ function AccountsPage({
                   >
                     <Eye size={15} /> View dashboard
                   </button>
-                  <button className="button button--secondary" onClick={() => onToast("Credentials copied securely")}>
+                  <button className="button button--secondary" onClick={() => { void navigator.clipboard?.writeText(`Login: ${account.login}\nServer: ${account.server}`); onToast("Credentials copied securely"); }}>
                     <KeyRound size={15} /> Credentials
                   </button>
-                  <button className="icon-btn"><Ellipsis size={17} /></button>
+                  <button className="icon-btn" onClick={() => onDialog({ title: `Manage ${account.label}`, description: "Rename this account, refresh its rule template, or disconnect the read-only synchronization.", detail: `${account.platform} · ${account.server}`, actionLabel: "Refresh account" })} aria-label={`Manage ${account.label}`}><Ellipsis size={17} /></button>
                 </div>
               </article>
             );
           })}
-          <button className="add-account-card" onClick={() => onToast("Account connection flow opened")}>
+          <button className="add-account-card" onClick={() => onDialog({ title: "Connect another account", description: "Bring every prop account into one risk and analytics workspace.", detail: "Read-only access · encrypted at rest", actionLabel: "Choose platform" })}>
             <span><Plus size={21} /></span>
             <strong>Connect another account</strong>
             <small>MT4, MT5, cTrader, DXtrade & more</small>
@@ -1130,8 +1229,10 @@ function AccountsPage({
   );
 }
 
-function AnalyticsPage() {
+function AnalyticsPage({ range, onToast }: { range: Range; onToast: (message: string) => void }) {
   const [metric, setMetric] = useState<"pnl" | "winRate">("pnl");
+  const sourceData = range === "7D" ? equityData.slice(-4) : range === "30D" ? equityData.slice(-10) : range === "90D" ? equityData : equityData.filter((_, index) => index % 2 === 0 || index === equityData.length - 1);
+  const performanceData = sourceData.map((item, index) => ({ ...item, winRate: 48 + index * 1.3 + (index % 3) * 2.1 }));
   const radarData = [
     { subject: "Risk control", value: 91 },
     { subject: "Consistency", value: 82 },
@@ -1171,7 +1272,7 @@ function AnalyticsPage() {
           />
           <div className="chart-wrap chart-wrap--medium">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={equityData} margin={{ top: 15, right: 10, left: -10, bottom: 0 }}>
+              <AreaChart data={performanceData} margin={{ top: 15, right: 10, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="performanceFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#7396ff" stopOpacity={0.32} />
@@ -1185,11 +1286,11 @@ function AnalyticsPage() {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 11 }}
-                  domain={[24800, 27200]}
-                  tickFormatter={(value) => `$${Math.round(value / 1000)}k`}
+                  domain={metric === "pnl" ? [24800, 27200] : [40, 80]}
+                  tickFormatter={(value) => metric === "pnl" ? `$${Math.round(value / 1000)}k` : `${Math.round(value)}%`}
                 />
-                <Tooltip content={<ChartTooltip />} />
-                <Area type="monotone" dataKey="balance" name="Balance" stroke="#7396ff" strokeWidth={2.2} fill="url(#performanceFill)" />
+                {metric === "pnl" && <Tooltip content={<ChartTooltip />} />}
+                <Area type="monotone" dataKey={metric === "pnl" ? "balance" : "winRate"} name={metric === "pnl" ? "Balance" : "Win rate"} stroke="#7396ff" strokeWidth={2.2} fill="url(#performanceFill)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -1199,7 +1300,7 @@ function AnalyticsPage() {
               <strong>Your edge is strongest between 09:30–11:30 GMT+1</strong>
               <span>Trades in this window generate 43% more expectancy with 18% less adverse excursion.</span>
             </div>
-            <button>Explore insight <ArrowRight size={14} /></button>
+            <button onClick={() => onToast("Insight added to your journal review queue")}>Explore insight <ArrowRight size={14} /></button>
           </div>
         </Panel>
         <Panel className="score-panel">
@@ -1292,7 +1393,7 @@ function AnalyticsPage() {
         <PanelHeading
           title="Strategy edge"
           subtitle="Performance grouped by journal setup tags"
-          action={<button className="button button--secondary"><Filter size={14} /> Customize</button>}
+          action={<button className="button button--secondary" onClick={() => onToast("Strategy columns customized")}><Filter size={14} /> Customize</button>}
         />
         <div className="strategy-table">
           <div className="strategy-row strategy-row--head">
@@ -1315,12 +1416,22 @@ function AnalyticsPage() {
 }
 
 function RiskPage({ account, onToast }: { account: TradingAccount; onToast: (message: string) => void }) {
+  const instruments = [
+    { symbol: "XAUUSD", name: "Gold / US Dollar", entry: 2332.4 },
+    { symbol: "NAS100", name: "Nasdaq 100", entry: 19_884.2 },
+    { symbol: "EURUSD", name: "Euro / US Dollar", entry: 1.1672 },
+  ];
+  const [instrumentIndex, setInstrumentIndex] = useState(0);
+  const [direction, setDirection] = useState<"Long" | "Short">("Long");
   const [riskPercent, setRiskPercent] = useState(0.5);
   const [stopDistance, setStopDistance] = useState(35);
   const [entry, setEntry] = useState(2332.4);
   const [maxTrades, setMaxTrades] = useState(4);
   const [dailyLoss, setDailyLoss] = useState(600);
   const [profitLock, setProfitLock] = useState(900);
+  const [cooldown, setCooldown] = useState(true);
+  const [expandedRule, setExpandedRule] = useState<string | null>(null);
+  const instrument = instruments[instrumentIndex];
   const riskAmount = account.equity * (riskPercent / 100);
   const lotSize = riskAmount / (stopDistance * 10);
   const currentRoom = account.equity - (account.startingBalance - account.maxLossLimit);
@@ -1353,15 +1464,22 @@ function RiskPage({ account, onToast }: { account: TradingAccount; onToast: (mes
           <div className="trade-form">
             <label className="form-field">
               <span>Instrument</span>
-              <button className="select-control">
-                <strong>XAUUSD</strong><small>Gold / US Dollar</small><ChevronDown size={15} />
+              <button
+                className="select-control"
+                onClick={() => {
+                  const nextIndex = (instrumentIndex + 1) % instruments.length;
+                  setInstrumentIndex(nextIndex);
+                  setEntry(instruments[nextIndex].entry);
+                }}
+              >
+                <strong>{instrument.symbol}</strong><small>{instrument.name}</small><ChevronDown size={15} />
               </button>
             </label>
             <label className="form-field">
               <span>Direction</span>
               <span className="direction-toggle">
-                <button className="active"><TrendingUp size={15} /> Long</button>
-                <button><TrendingDown size={15} /> Short</button>
+                <button className={direction === "Long" ? "active" : ""} onClick={() => setDirection("Long")}><TrendingUp size={15} /> Long</button>
+                <button className={direction === "Short" ? "active" : ""} onClick={() => setDirection("Short")}><TrendingDown size={15} /> Short</button>
               </span>
             </label>
             <label className="form-field">
@@ -1396,7 +1514,7 @@ function RiskPage({ account, onToast }: { account: TradingAccount; onToast: (mes
           <div className="calculator-result">
             <div><span>Suggested size</span><strong>{lotSize.toFixed(2)} lots</strong></div>
             <div><span>Cash at risk</span><strong>{money(riskAmount)}</strong></div>
-            <div><span>Stop price</span><strong>{(entry - stopDistance / 10).toFixed(2)}</strong></div>
+            <div><span>Stop price</span><strong>{(entry + (direction === "Long" ? -1 : 1) * stopDistance / 10).toFixed(2)}</strong></div>
             <div><span>Runway after loss</span><strong>{money(runwayAfter)}</strong></div>
           </div>
           <div className={clsx("trade-verdict", !isSafe && "trade-verdict--warning")}>
@@ -1433,7 +1551,7 @@ function RiskPage({ account, onToast }: { account: TradingAccount; onToast: (mes
           </div>
           <div className="limit-control">
             <div><span>Loss cooldown</span><small>Pause after 2 consecutive losses</small></div>
-            <button className="toggle active" aria-label="Toggle cooldown"><span /></button>
+            <button className={clsx("toggle", cooldown && "active")} onClick={() => setCooldown((value) => !value)} aria-label="Toggle cooldown" aria-pressed={cooldown}><span /></button>
           </div>
           <div className="lock-notice"><Info size={15} />Once locked, these settings cannot change until 17:00 CT.</div>
           <button className="button button--primary button--full" onClick={() => onToast("Circuit breakers locked for this session")}>
@@ -1452,7 +1570,7 @@ function RiskPage({ account, onToast }: { account: TradingAccount; onToast: (mes
               <div><span>Threshold</span><strong>$25,206.40</strong></div>
               <div><span>Current</span><strong>$26,817.20</strong></div>
               <Pill tone="green">$1,610.80 room</Pill>
-              <button className="icon-btn icon-btn--small"><ChevronDown size={14} /></button>
+              <button className="icon-btn icon-btn--small" onClick={() => setExpandedRule(expandedRule === "daily" ? null : "daily")} aria-label="Explain daily loss rule" aria-expanded={expandedRule === "daily"}><ChevronDown size={14} /></button>
             </div>
             <div className="rule-engine-row">
               <span className="rule-state rule-state--safe"><Check size={15} /></span>
@@ -1460,7 +1578,7 @@ function RiskPage({ account, onToast }: { account: TradingAccount; onToast: (mes
               <div><span>Threshold</span><strong>$22,500.00</strong></div>
               <div><span>Current</span><strong>$26,817.20</strong></div>
               <Pill tone="green">$4,317.20 room</Pill>
-              <button className="icon-btn icon-btn--small"><ChevronDown size={14} /></button>
+              <button className="icon-btn icon-btn--small" onClick={() => setExpandedRule(expandedRule === "maximum" ? null : "maximum")} aria-label="Explain maximum loss rule" aria-expanded={expandedRule === "maximum"}><ChevronDown size={14} /></button>
             </div>
             <div className="rule-engine-row">
               <span className="rule-state rule-state--safe"><Check size={15} /></span>
@@ -1468,8 +1586,17 @@ function RiskPage({ account, onToast }: { account: TradingAccount; onToast: (mes
               <div><span>Limit</span><strong>40.0%</strong></div>
               <div><span>Current</span><strong>21.8%</strong></div>
               <Pill tone="green">18.2% buffer</Pill>
-              <button className="icon-btn icon-btn--small"><ChevronDown size={14} /></button>
+              <button className="icon-btn icon-btn--small" onClick={() => setExpandedRule(expandedRule === "consistency" ? null : "consistency")} aria-label="Explain consistency rule" aria-expanded={expandedRule === "consistency"}><ChevronDown size={14} /></button>
             </div>
+            {expandedRule && (
+              <div className="rule-detail">
+                <Info size={15} />
+                <div>
+                  <strong>{expandedRule === "daily" ? "Daily loss uses the higher of balance or equity" : expandedRule === "maximum" ? "Maximum loss is static for this program" : "Consistency updates after each closed trading day"}</strong>
+                  <span>{expandedRule === "daily" ? "Open P&L, commissions and swaps are included. The baseline resets at midnight CE(S)T." : expandedRule === "maximum" ? "The $22,500 floor never trails upward, so realized profit increases your usable runway." : "Your largest profitable day is divided by current net profit. Keep the result below 40%."}</span>
+                </div>
+              </div>
+            )}
           </div>
         </Panel>
         <Panel className="risk-forecast">
@@ -1531,11 +1658,11 @@ function JournalPage({ onExport, onToast }: { onExport: () => void; onToast: (me
           <div className="filter-tabs filter-tabs--small">
             {["All", "Wins", "Losses"].map((item) => <button className={result === item ? "active" : ""} onClick={() => setResult(item)} key={item}>{item}</button>)}
           </div>
-          <button className="button button--secondary"><CalendarDays size={15} /> Jun 01 – Jun 28</button>
-          <button className="button button--secondary"><Filter size={15} /> More filters</button>
+          <button className="button button--secondary" onClick={() => onToast("Date range changed to the current 30-day period")}><CalendarDays size={15} /> Jun 01 – Jun 28</button>
+          <button className="button button--secondary" onClick={() => onToast("Advanced journal filters opened")}><Filter size={15} /> More filters</button>
           <button className="button button--secondary" onClick={onExport}><Download size={15} /> CSV</button>
         </div>
-        <TradeTable items={filtered} />
+        <TradeTable items={filtered} onInspect={setSelectedTrade} />
       </Panel>
 
       <div className="journal-grid">
@@ -1548,7 +1675,7 @@ function JournalPage({ onExport, onToast }: { onExport: () => void; onToast: (me
               <p>You take 37% more size and enter 2.4× faster than usual. These trades generated <span className="negative">-$286</span> this month.</p>
               <div className="behavior-actions">
                 <button className="button button--primary" onClick={() => onToast("Post-loss cooldown added to your risk plan")}>Add 15-min cooldown</button>
-                <button className="text-button">View 6 matching trades <ArrowRight size={14} /></button>
+                <button className="text-button" onClick={() => { setResult("Losses"); setQuery(""); }}>View matching trades <ArrowRight size={14} /></button>
               </div>
             </div>
           </div>
@@ -1574,6 +1701,8 @@ function JournalPage({ onExport, onToast }: { onExport: () => void; onToast: (me
 }
 
 function TradeDrawer({ trade, onClose, onSave }: { trade: Trade; onClose: () => void; onSave: () => void }) {
+  const [emotion, setEmotion] = useState(trade.emotion);
+  const [followedPlan, setFollowedPlan] = useState(trade.followedPlan);
   return (
     <>
       <button className="drawer-scrim" aria-label="Close trade" onClick={onClose} />
@@ -1602,10 +1731,10 @@ function TradeDrawer({ trade, onClose, onSave }: { trade: Trade; onClose: () => 
         <div className="drawer-field">
           <span>Emotional state</span>
           <div className="emotion-picker">
-            {["Focused", "Patient", "Rushed", "Confident"].map((emotion) => <button className={trade.emotion === emotion ? "active" : ""} key={emotion}>{emotion}</button>)}
+            {(["Focused", "Patient", "Rushed", "Confident"] as const).map((item) => <button className={emotion === item ? "active" : ""} onClick={() => setEmotion(item)} key={item}>{item}</button>)}
           </div>
         </div>
-        <label className="check-row"><input type="checkbox" defaultChecked={trade.followedPlan} /><span><Check size={14} /></span> I followed my trading plan</label>
+        <label className="check-row"><input type="checkbox" checked={followedPlan} onChange={(event) => setFollowedPlan(event.target.checked)} /><span><Check size={14} /></span> I followed my trading plan</label>
         <div className="drawer-actions"><button className="button button--secondary" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={onSave}>Save review</button></div>
       </aside>
     </>
@@ -1614,7 +1743,21 @@ function TradeDrawer({ trade, onClose, onSave }: { trade: Trade; onClose: () => 
 
 function PayoutsPage({ onToast }: { onToast: (message: string) => void }) {
   const [selected, setSelected] = useState("Funded $100K");
+  const [scheduled, setScheduled] = useState(false);
   const eligible = selected === "Funded $100K" ? 3857.22 : 2284.4;
+  const downloadStatements = () => {
+    const rows = [
+      "Request,Requested,Account,Gross amount,Split,Method,Status,Completed",
+      ...payoutHistory.map((item) => [item.id, item.requested, item.account, item.amount, item.split, item.method, item.status, item.completed].map((value) => `"${value}"`).join(",")),
+    ];
+    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "nova-payout-statements.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
+    onToast("Payout statements downloaded");
+  };
   return (
     <div className="page-stack">
       <Panel className="payout-hero">
@@ -1629,8 +1772,8 @@ function PayoutsPage({ onToast }: { onToast: (message: string) => void }) {
               <option>Swing $50K</option>
             </select>
           </div>
-          <button className="button button--primary" onClick={() => onToast("Payout request scheduled for June 30")}>
-            Schedule payout <ArrowRight size={15} />
+          <button className="button button--primary" disabled={scheduled} onClick={() => { setScheduled(true); onToast("Payout request scheduled for June 30"); }}>
+            {scheduled ? <><Check size={15} /> Payout scheduled</> : <>Schedule payout <ArrowRight size={15} /></>}
           </button>
         </div>
         <div className="payout-readiness">
@@ -1677,7 +1820,7 @@ function PayoutsPage({ onToast }: { onToast: (message: string) => void }) {
       </div>
 
       <Panel>
-        <PanelHeading title="Payout history" subtitle="Every request, status change, and settlement" action={<button className="button button--secondary"><Download size={15} /> Statements</button>} />
+        <PanelHeading title="Payout history" subtitle="Every request, status change, and settlement" action={<button className="button button--secondary" onClick={downloadStatements}><Download size={15} /> Statements</button>} />
         <div className="payout-table">
           <div className="payout-row payout-row--head"><span>Request</span><span>Account</span><span>Gross amount</span><span>Split</span><span>Method</span><span>Status</span><span>Completed</span></div>
           {payoutHistory.map((item) => (
@@ -1697,9 +1840,15 @@ function PayoutsPage({ onToast }: { onToast: (message: string) => void }) {
   );
 }
 
-function CalendarPage({ onToast }: { onToast: (message: string) => void }) {
+function CalendarPage({ onToast, onDialog }: { onToast: (message: string) => void; onDialog: (dialog: AppDialog) => void }) {
   const [impact, setImpact] = useState("All");
   const [watching, setWatching] = useState<string[]>(["Core PCE Price Index m/m"]);
+  const [dayOffset, setDayOffset] = useState(0);
+  const selectedDate = new Date(2026, 5, 28 + dayOffset).toLocaleDateString("en-US", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+  });
   const toggleWatch = (event: string) => {
     setWatching((items) => items.includes(event) ? items.filter((item) => item !== event) : [...items, event]);
     onToast(watching.includes(event) ? "Event alert removed" : "Event alert created");
@@ -1714,9 +1863,9 @@ function CalendarPage({ onToast }: { onToast: (message: string) => void }) {
       </div>
       <Panel>
         <div className="calendar-toolbar">
-          <div className="date-navigator"><button className="icon-btn"><ChevronRight className="rotate-180" size={16} /></button><div><strong>Sunday, 28 June</strong><small>Africa/Douala · GMT+1</small></div><button className="icon-btn"><ChevronRight size={16} /></button><button className="button button--secondary">Today</button></div>
+          <div className="date-navigator"><button className="icon-btn" onClick={() => setDayOffset((value) => value - 1)} aria-label="Previous day"><ChevronRight className="rotate-180" size={16} /></button><div><strong>{selectedDate}</strong><small>Africa/Douala · GMT+1</small></div><button className="icon-btn" onClick={() => setDayOffset((value) => value + 1)} aria-label="Next day"><ChevronRight size={16} /></button><button className="button button--secondary" onClick={() => setDayOffset(0)}>Today</button></div>
           <div className="filter-tabs filter-tabs--small">{["All", "High", "Medium", "Low"].map((item) => <button className={impact === item ? "active" : ""} onClick={() => setImpact(item)} key={item}>{item}</button>)}</div>
-          <button className="button button--secondary"><Settings size={15} /> Filters</button>
+          <button className="button button--secondary" onClick={() => { setImpact("High"); onToast("Showing only events that can restrict trading"); }}><Settings size={15} /> Risk events only</button>
         </div>
         <div className="calendar-table">
           <div className="calendar-row calendar-row--head"><span>Time</span><span>Impact</span><span>Event</span><span>Forecast</span><span>Previous</span><span>Trading status</span><span /></div>
@@ -1735,7 +1884,7 @@ function CalendarPage({ onToast }: { onToast: (message: string) => void }) {
       </Panel>
       <div className="calendar-info-grid">
         <Panel>
-          <PanelHeading title="Your news rule" subtitle="Two-Step Pro · NX-204981" action={<button className="text-button">View terms <ArrowRight size={14} /></button>} />
+          <PanelHeading title="Your news rule" subtitle="Two-Step Pro · NX-204981" action={<button className="text-button" onClick={() => onDialog({ title: "Restricted news trading terms", description: "New entries, manual exits, and triggered pending orders are prohibited from 15 minutes before until 5 minutes after a high-impact release. Existing positions may remain open.", detail: "Rule source: Two-Step Pro · version 4.2", actionLabel: "I understand" })}>View terms <ArrowRight size={14} /></button>} />
           <div className="rule-explainer">
             <div className="timeline-rule"><span className="safe-zone">Allowed</span><span className="blocked-zone">15m before</span><i>Release</i><span className="blocked-zone short">5m after</span><span className="safe-zone">Allowed</span></div>
             <p>You may hold positions through news. Opening or closing a trade inside the restricted window is a rule violation, including pending orders triggered during that window.</p>
@@ -1754,6 +1903,16 @@ function CalendarPage({ onToast }: { onToast: (message: string) => void }) {
 }
 
 function AchievementsPage({ onToast }: { onToast: (message: string) => void }) {
+  const downloadCertificate = (title: string, subtitle: string, date: string) => {
+    const certificate = `NOVA FUNDING CERTIFICATE\n\n${title}\n${subtitle}\n\nAwarded to Nji Halle\n${date}\n\nVerification: nova.fund/trader/njihalle`;
+    const blob = new Blob([certificate], { type: "text/plain;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${title.toLowerCase().replaceAll(" ", "-")}-certificate.txt`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    onToast(`${title} certificate downloaded`);
+  };
   return (
     <div className="page-stack">
       <Panel className="level-hero">
@@ -1774,7 +1933,7 @@ function AchievementsPage({ onToast }: { onToast: (message: string) => void }) {
             <h3>{achievement.title}</h3>
             <span>{achievement.subtitle}</span>
             <small>Awarded to Nji Halle · {achievement.date}</small>
-            <button onClick={() => onToast(`${achievement.title} certificate prepared for sharing`)}><Download size={14} /> Download</button>
+            <button onClick={() => downloadCertificate(achievement.title, achievement.subtitle, achievement.date)}><Download size={14} /> Download</button>
           </article>
         ))}
       </div>
@@ -1792,7 +1951,7 @@ function AchievementsPage({ onToast }: { onToast: (message: string) => void }) {
           <div className="public-profile">
             <div className="public-profile-head"><span>NH</span><div><strong>Nji Halle</strong><small>@njihalle · Cameroon</small></div><BadgeCheck size={18} /></div>
             <div className="public-stats"><div><strong>$150K</strong><span>Funded</span></div><div><strong>3</strong><span>Payouts</span></div><div><strong>86</strong><span>Discipline</span></div></div>
-            <div className="profile-url"><span>nova.fund/trader/njihalle</span><button onClick={() => onToast("Public profile link copied")}><Copy size={14} /> Copy</button></div>
+            <div className="profile-url"><span>nova.fund/trader/njihalle</span><button onClick={() => { void navigator.clipboard?.writeText("https://nova.fund/trader/njihalle"); onToast("Public profile link copied"); }}><Copy size={14} /> Copy</button></div>
           </div>
         </Panel>
       </div>
@@ -1800,7 +1959,8 @@ function AchievementsPage({ onToast }: { onToast: (message: string) => void }) {
   );
 }
 
-function AcademyPage() {
+function AcademyPage({ onToast }: { onToast: (message: string) => void }) {
+  const [activeLesson, setActiveLesson] = useState("Stop giving back green days");
   const lessons = [
     { icon: Shield, title: "Mastering drawdown math", detail: "8 min · Risk management", progress: 100 },
     { icon: Target, title: "Build a repeatable pre-trade routine", detail: "12 min · Psychology", progress: 62 },
@@ -1810,21 +1970,21 @@ function AcademyPage() {
   return (
     <div className="page-stack">
       <Panel className="academy-hero">
-        <div><Pill tone="violet"><Sparkles size={12} /> Recommended for you</Pill><h2>Stop giving back green days</h2><p>Your journal shows that 68% of avoidable loss happens after you reach +1.5R on the day. This 8-minute lesson builds a practical stop-for-the-day rule.</p><button className="button button--primary">Continue lesson <ArrowRight size={15} /></button></div>
+        <div><Pill tone="violet"><Sparkles size={12} /> Recommended for you</Pill><h2>Stop giving back green days</h2><p>Your journal shows that 68% of avoidable loss happens after you reach +1.5R on the day. This 8-minute lesson builds a practical stop-for-the-day rule.</p><button className="button button--primary" onClick={() => { setActiveLesson("Stop giving back green days"); onToast("Lesson resumed at 04:18"); }}>Continue lesson <ArrowRight size={15} /></button></div>
         <div className="lesson-visual"><div><span><BookOpen size={26} /></span><strong>68%</strong><small>of avoidable loss</small></div></div>
       </Panel>
       <div className="academy-grid">
         {lessons.map((lesson) => {
           const Icon = lesson.icon;
-          return <article className="lesson-card" key={lesson.title}><span><Icon size={20} /></span><Pill tone={lesson.progress === 100 ? "green" : lesson.progress > 0 ? "blue" : "neutral"}>{lesson.progress === 100 ? "Completed" : lesson.progress > 0 ? "In progress" : "New"}</Pill><h3>{lesson.title}</h3><p>{lesson.detail}</p><div className="progress-track"><span className="progress-fill progress-fill--blue" style={{ width: `${lesson.progress}%` }} /></div><button>{lesson.progress > 0 ? "Continue" : "Start lesson"} <ArrowRight size={14} /></button></article>;
+          return <article className={clsx("lesson-card", activeLesson === lesson.title && "lesson-card--active")} key={lesson.title}><span><Icon size={20} /></span><Pill tone={lesson.progress === 100 ? "green" : lesson.progress > 0 ? "blue" : "neutral"}>{lesson.progress === 100 ? "Completed" : lesson.progress > 0 ? "In progress" : "New"}</Pill><h3>{lesson.title}</h3><p>{lesson.detail}</p><div className="progress-track"><span className="progress-fill progress-fill--blue" style={{ width: `${lesson.progress}%` }} /></div><button onClick={() => { setActiveLesson(lesson.title); onToast(`${lesson.title} opened`); }}>{lesson.progress > 0 ? "Continue" : "Start lesson"} <ArrowRight size={14} /></button></article>;
         })}
       </div>
       <Panel>
         <PanelHeading title="Learning paths" subtitle="Structured skills for each funding stage" />
         <div className="learning-paths">
-          <div><span><ShieldCheck size={22} /></span><div><Pill tone="green">6 of 8 complete</Pill><h3>Evaluation survival</h3><p>Rule mastery, sizing, drawdown and consistency.</p></div><button className="icon-btn"><ArrowRight size={16} /></button></div>
-          <div><span><CircleDollarSign size={22} /></span><div><Pill tone="blue">2 of 7 complete</Pill><h3>Funded longevity</h3><p>Payout planning, scaling, and capital preservation.</p></div><button className="icon-btn"><ArrowRight size={16} /></button></div>
-          <div><span><Activity size={22} /></span><div><Pill tone="neutral">0 of 6 complete</Pill><h3>Professional analytics</h3><p>Expectancy, excursions, regimes, and robust review.</p></div><button className="icon-btn"><ArrowRight size={16} /></button></div>
+          <div><span><ShieldCheck size={22} /></span><div><Pill tone="green">6 of 8 complete</Pill><h3>Evaluation survival</h3><p>Rule mastery, sizing, drawdown and consistency.</p></div><button className="icon-btn" onClick={() => onToast("Evaluation survival path opened")} aria-label="Open evaluation survival path"><ArrowRight size={16} /></button></div>
+          <div><span><CircleDollarSign size={22} /></span><div><Pill tone="blue">2 of 7 complete</Pill><h3>Funded longevity</h3><p>Payout planning, scaling, and capital preservation.</p></div><button className="icon-btn" onClick={() => onToast("Funded longevity path opened")} aria-label="Open funded longevity path"><ArrowRight size={16} /></button></div>
+          <div><span><Activity size={22} /></span><div><Pill tone="neutral">0 of 6 complete</Pill><h3>Professional analytics</h3><p>Expectancy, excursions, regimes, and robust review.</p></div><button className="icon-btn" onClick={() => onToast("Professional analytics path opened")} aria-label="Open professional analytics path"><ArrowRight size={16} /></button></div>
         </div>
       </Panel>
     </div>
@@ -1833,6 +1993,8 @@ function AcademyPage() {
 
 function SupportPage({ onToast }: { onToast: (message: string) => void }) {
   const [query, setQuery] = useState("");
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
   const topics = [
     { icon: Shield, title: "Rules & objectives", count: "18 articles" },
     { icon: WalletCards, title: "Payouts", count: "12 articles" },
@@ -1847,13 +2009,18 @@ function SupportPage({ onToast }: { onToast: (message: string) => void }) {
         <div><span><HelpCircle size={28} /></span><h2>What can we help you with?</h2><p>Clear answers about your account, rules, payouts, and platform.</p><label className="support-search"><Search size={19} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search for an answer…" /><kbd>Enter</kbd></label></div>
       </Panel>
       <div className="support-topics">
-        {topics.filter((topic) => topic.title.toLowerCase().includes(query.toLowerCase())).map((topic) => { const Icon = topic.icon; return <button key={topic.title}><span><Icon size={20} /></span><div><strong>{topic.title}</strong><small>{topic.count}</small></div><ChevronRight size={16} /></button>; })}
+        {topics.filter((topic) => topic.title.toLowerCase().includes(query.toLowerCase())).map((topic) => { const Icon = topic.icon; return <button className={selectedTopic === topic.title ? "active" : ""} onClick={() => { setSelectedTopic(topic.title); onToast(`${topic.title} articles loaded`); }} key={topic.title}><span><Icon size={20} /></span><div><strong>{topic.title}</strong><small>{topic.count}</small></div><ChevronRight size={16} /></button>; })}
       </div>
       <div className="support-lower">
         <Panel>
           <PanelHeading title="Popular answers" subtitle="Most useful this week" />
           <div className="faq-list">
-            {["How is the daily loss limit calculated?", "When does my dashboard update?", "What makes an account payout eligible?", "How do restricted news windows work?", "Can I hold trades overnight and on weekends?"].map((item, index) => <button key={item}><span>{index + 1}</span>{item}<ChevronRight size={15} /></button>)}
+            {["How is the daily loss limit calculated?", "When does my dashboard update?", "What makes an account payout eligible?", "How do restricted news windows work?", "Can I hold trades overnight and on weekends?"].map((item, index) => (
+              <div className="faq-item" key={item}>
+                <button onClick={() => setExpandedFaq(expandedFaq === item ? null : item)} aria-expanded={expandedFaq === item}><span>{index + 1}</span>{item}<ChevronRight className={expandedFaq === item ? "rotate-90" : ""} size={15} /></button>
+                {expandedFaq === item && <p>{index === 0 ? "The limit includes realized P&L, floating P&L, commissions and swaps. Its reference equity resets at the firm’s stated trading-day boundary." : index === 1 ? "Live equity updates continuously. Settled objectives and consistency metrics finalize after the trading day closes." : index === 2 ? "Eligibility combines minimum profitable days, consistency, available profit and the account’s payout-cycle date." : index === 3 ? "NOVA marks the exact restricted window around each high-impact release and alerts you before it begins." : "Overnight and weekend holding depends on the program. Your account card and rule engine show the policy that applies to the selected account."}</p>}
+              </div>
+            ))}
           </div>
         </Panel>
         <Panel className="contact-panel">
@@ -1862,7 +2029,7 @@ function SupportPage({ onToast }: { onToast: (message: string) => void }) {
           <h3>Talk to a real person</h3>
           <p>Average first reply is under 3 minutes. Include your account ID so we can help faster.</p>
           <button className="button button--primary button--full" onClick={() => onToast("Live support conversation started")}><Headphones size={16} /> Start live chat</button>
-          <button className="button button--secondary button--full"><FileText size={16} /> Submit a ticket</button>
+          <button className="button button--secondary button--full" onClick={() => onToast("Support ticket draft created")}><FileText size={16} /> Submit a ticket</button>
           <small>Support available 24/5 · English, French + 8 more</small>
         </Panel>
       </div>
@@ -1870,7 +2037,145 @@ function SupportPage({ onToast }: { onToast: (message: string) => void }) {
   );
 }
 
-function NotificationsPanel({ onClose, onNavigate }: { onClose: () => void; onNavigate: (href: string) => void }) {
+function SettingsPage({
+  onToast,
+  onDialog,
+}: {
+  onToast: (message: string) => void;
+  onDialog: (dialog: AppDialog) => void;
+}) {
+  const [tab, setTab] = useState<"profile" | "connections" | "notifications" | "security">("profile");
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [pushAlerts, setPushAlerts] = useState(true);
+  const [riskAlerts, setRiskAlerts] = useState(true);
+  const [weeklyReport, setWeeklyReport] = useState(false);
+
+  return (
+    <div className="settings-layout">
+      <Panel className="settings-nav">
+        <div className="settings-profile">
+          <span>NH</span>
+          <div><strong>Nji Halle</strong><small>nji.halle@example.com</small></div>
+          <Pill tone="green"><BadgeCheck size={11} /> Verified</Pill>
+        </div>
+        {[
+          { id: "profile", label: "Profile & preferences", icon: UserRound },
+          { id: "connections", label: "Platform connections", icon: RefreshCw },
+          { id: "notifications", label: "Notifications", icon: Bell },
+          { id: "security", label: "Security & sessions", icon: Shield },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <button className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id as typeof tab)} key={item.id}>
+              <Icon size={16} />{item.label}<ChevronRight size={14} />
+            </button>
+          );
+        })}
+      </Panel>
+
+      <Panel className="settings-content">
+        {tab === "profile" && (
+          <>
+            <PanelHeading title="Profile & preferences" subtitle="Used for certificates, payouts, and support" />
+            <div className="settings-form">
+              <label><span>Full legal name</span><input defaultValue="Nji Halle Cho-Nkwenti" /></label>
+              <label><span>Display name</span><input defaultValue="Nji Halle" /></label>
+              <label><span>Email address</span><input type="email" defaultValue="nji.halle@example.com" /></label>
+              <label><span>Phone number</span><input type="tel" defaultValue="+237 6 70 00 00 00" /></label>
+              <label><span>Timezone</span><select defaultValue="Africa/Douala"><option>Africa/Douala</option><option>Europe/London</option><option>America/New_York</option></select></label>
+              <label><span>Base currency</span><select defaultValue="USD"><option>USD</option><option>EUR</option><option>GBP</option></select></label>
+            </div>
+            <div className="settings-actions"><button className="button button--secondary" onClick={() => onToast("Profile changes discarded")}>Discard</button><button className="button button--primary" onClick={() => onToast("Profile preferences saved")}>Save changes</button></div>
+          </>
+        )}
+
+        {tab === "connections" && (
+          <>
+            <PanelHeading title="Platform connections" subtitle="Read-only synchronization for trades and account rules" action={<button className="button button--primary" onClick={() => onDialog({ title: "Connect a platform", description: "Choose your platform, then add investor credentials or authorize the secure API connection.", detail: "MT4 · MT5 · cTrader · DXtrade", actionLabel: "Choose platform" })}><Plus size={14} /> Add connection</button>} />
+            <div className="connection-list">
+              {[
+                { name: "MetaTrader 5", account: "NX-204981 · NOVA-Live 02", sync: "8 seconds ago", tone: "green" },
+                { name: "cTrader", account: "NX-184023 · NOVA-cT Live", sync: "42 seconds ago", tone: "blue" },
+                { name: "DXtrade", account: "NX-095426 · NOVA-Demo", sync: "2 minutes ago", tone: "violet" },
+              ].map((connection) => (
+                <div key={connection.account}>
+                  <span className={`connection-logo connection-logo--${connection.tone}`}>{connection.name.slice(0, 2)}</span>
+                  <div><strong>{connection.name}</strong><small>{connection.account}</small></div>
+                  <span className="connection-sync"><i />Synced {connection.sync}</span>
+                  <button className="button button--secondary" onClick={() => onToast(`${connection.name} synchronized`)}><RefreshCw size={14} /> Sync now</button>
+                  <button className="icon-btn" onClick={() => onDialog({ title: `Disconnect ${connection.name}?`, description: "Historical analytics will remain available, but live equity, rules and new trades will stop updating.", actionLabel: "Disconnect" })} aria-label={`Disconnect ${connection.name}`}><X size={15} /></button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {tab === "notifications" && (
+          <>
+            <PanelHeading title="Notification preferences" subtitle="Choose what reaches you and where" />
+            <div className="preference-list">
+              {[
+                { title: "Email alerts", detail: "Payouts, verification and account status", value: emailAlerts, set: setEmailAlerts },
+                { title: "Push notifications", detail: "Live risk and economic-event warnings", value: pushAlerts, set: setPushAlerts },
+                { title: "Risk threshold alerts", detail: "Warn at 50%, 75% and 90% rule utilization", value: riskAlerts, set: setRiskAlerts },
+                { title: "Weekly performance report", detail: "Analytics summary every Sunday", value: weeklyReport, set: setWeeklyReport },
+              ].map((preference) => (
+                <div key={preference.title}><div><strong>{preference.title}</strong><small>{preference.detail}</small></div><button className={clsx("toggle", preference.value && "active")} onClick={() => preference.set(!preference.value)} aria-pressed={preference.value}><span /></button></div>
+              ))}
+            </div>
+            <div className="settings-actions"><button className="button button--primary" onClick={() => onToast("Notification preferences saved")}>Save preferences</button></div>
+          </>
+        )}
+
+        {tab === "security" && (
+          <>
+            <PanelHeading title="Security & sessions" subtitle="Protect access to accounts and payout details" />
+            <div className="security-cards">
+              <div><span><KeyRound size={19} /></span><div><strong>Two-factor authentication</strong><small>Authenticator app enabled · recovery codes saved</small></div><button className="button button--secondary" onClick={() => onDialog({ title: "Manage two-factor authentication", description: "Generate new recovery codes or move your authenticator to another device.", actionLabel: "Continue securely" })}>Manage</button></div>
+              <div><span><ShieldCheck size={19} /></span><div><strong>Identity verification</strong><small>Verified on June 04, 2026</small></div><Pill tone="green"><Check size={11} /> Complete</Pill></div>
+              <div><span><RefreshCw size={19} /></span><div><strong>Active sessions</strong><small>2 devices · last active just now</small></div><button className="button button--secondary" onClick={() => onDialog({ title: "Sign out other sessions?", description: "This browser will remain signed in. Every other device will need to authenticate again.", actionLabel: "Sign out others" })}>Review</button></div>
+            </div>
+          </>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+function ActionDialog({
+  dialog,
+  onClose,
+  onConfirm,
+}: {
+  dialog: AppDialog;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="action-dialog-overlay" onMouseDown={onClose}>
+      <div className="action-dialog" role="dialog" aria-modal="true" aria-labelledby="action-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="action-dialog-icon"><Sparkles size={22} /></div>
+        <button className="icon-btn action-dialog-close" onClick={onClose} aria-label="Close dialog"><X size={17} /></button>
+        <h2 id="action-dialog-title">{dialog.title}</h2>
+        <p>{dialog.description}</p>
+        {dialog.detail && <div className="action-dialog-detail"><Info size={15} />{dialog.detail}</div>}
+        <div className="action-dialog-actions"><button className="button button--secondary" onClick={onClose}>Cancel</button><button className="button button--primary" onClick={onConfirm}>{dialog.actionLabel ?? "Done"}<ArrowRight size={14} /></button></div>
+      </div>
+    </div>
+  );
+}
+
+function NotificationsPanel({
+  onClose,
+  onNavigate,
+  onMarkRead,
+  onSettings,
+}: {
+  onClose: () => void;
+  onNavigate: (href: string) => void;
+  onMarkRead: () => void;
+  onSettings: () => void;
+}) {
   return (
     <>
       <button className="drawer-scrim" aria-label="Close notifications" onClick={onClose} />
@@ -1884,10 +2189,10 @@ function NotificationsPanel({ onClose, onNavigate }: { onClose: () => void; onNa
         </div>
         <div className="notification-group">
           <p>Yesterday</p>
-          <button><span className="notification-icon notification-icon--violet"><Sparkles size={17} /></span><div><strong>New behavior insight</strong><p>We found a pattern in your post-loss trading.</p><small>Yesterday · 18:42</small></div></button>
-          <button><span className="notification-icon"><RefreshCw size={17} /></span><div><strong>Account synchronized</strong><p>61 trades imported successfully from MT5.</p><small>Yesterday · 17:05</small></div></button>
+          <button onClick={() => onNavigate("/dashboard/journal")}><span className="notification-icon notification-icon--violet"><Sparkles size={17} /></span><div><strong>New behavior insight</strong><p>We found a pattern in your post-loss trading.</p><small>Yesterday · 18:42</small></div></button>
+          <button onClick={() => onNavigate("/dashboard/accounts")}><span className="notification-icon"><RefreshCw size={17} /></span><div><strong>Account synchronized</strong><p>61 trades imported successfully from MT5.</p><small>Yesterday · 17:05</small></div></button>
         </div>
-        <div className="notifications-footer"><button>Mark all as read</button><button>Notification settings</button></div>
+        <div className="notifications-footer"><button onClick={onMarkRead}>Mark all as read</button><button onClick={onSettings}>Notification settings</button></div>
       </aside>
     </>
   );
@@ -1897,9 +2202,9 @@ function CommandPalette({ onClose, onNavigate }: { onClose: () => void; onNaviga
   const [query, setQuery] = useState("");
   const actions = useMemo(() => [
     ...navGroups.flatMap((group) => group.items.map((item) => ({ label: item.label, sub: group.label, icon: item.icon, href: item.href }))),
-    { label: "Export trade report", sub: "Action", icon: Download, href: "/dashboard/journal" },
-    { label: "Calculate position size", sub: "Action", icon: Target, href: "/dashboard/risk" },
-    { label: "Request a payout", sub: "Action", icon: WalletCards, href: "/dashboard/payouts" },
+    { label: "Open trade reports", sub: "Action", icon: Download, href: "/dashboard/journal" },
+    { label: "Open position size calculator", sub: "Action", icon: Target, href: "/dashboard/risk" },
+    { label: "Open payout center", sub: "Action", icon: WalletCards, href: "/dashboard/payouts" },
   ].filter((action) => `${action.label} ${action.sub}`.toLowerCase().includes(query.toLowerCase())), [query]);
   return (
     <div className="command-overlay" onMouseDown={onClose}>
